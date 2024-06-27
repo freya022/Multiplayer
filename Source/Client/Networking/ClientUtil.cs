@@ -9,28 +9,44 @@ namespace Multiplayer.Client
 {
     public static class ClientUtil
     {
-        public static void TryConnectWithWindow(string address, int port, bool returnToServerBrowser = true)
+        public static (NetPeer, ClientNetManager, MpClientNetListener) ConnectClient(string address, int port)
         {
-            Find.WindowStack.Add(new ConnectingWindow(address, port) { returnToServerBrowser = returnToServerBrowser });
-
             Multiplayer.session = new MultiplayerSession
             {
                 address = address,
                 port = port
             };
-
-            NetManager netClient = new NetManager(new MpClientNetListener())
+            NetPeer defaultPeer = null;
+            MpClientNetListener clientNetListener = new MpClientNetListener();
+            ClientNetManager netClient = new ClientNetManager();
+            for (int i = 0; i < MultiplayerConstants.Parallelism; i++)
             {
-                EnableStatistics = true,
-                IPv6Enabled = MpUtil.SupportsIPv6() ? IPv6Mode.SeparateSocket : IPv6Mode.Disabled
-            };
-
-            netClient.Start();
-            netClient.ReconnectDelay = 300;
-            netClient.MaxConnectAttempts = 8;
+                NetManager netSubClient = new NetManager(clientNetListener)
+                {
+                    EnableStatistics = true,
+                    IPv6Enabled = MpUtil.SupportsIPv6() ? IPv6Mode.SeparateSocket : IPv6Mode.Disabled
+                };
+                netSubClient.Start();
+                netSubClient.ReconnectDelay = 300;
+                netSubClient.MaxConnectAttempts = 8;
+                if (defaultPeer == null)
+                {
+                    defaultPeer = netSubClient.Connect(address, port, "");
+                }
+                else
+                {
+                    netSubClient.Connect(address, port+i, "");
+                }
+                netClient.netManagers[i] = netSubClient;
+            }
 
             Multiplayer.session.netClient = netClient;
-            netClient.Connect(address, port, "");
+            return (defaultPeer, netClient, clientNetListener);
+        }
+        public static void TryConnectWithWindow(string address, int port, bool returnToServerBrowser = true)
+        {
+            Find.WindowStack.Add(new ConnectingWindow(address, port) { returnToServerBrowser = returnToServerBrowser });
+            ConnectClient(address, port);
         }
 
         public static void TrySteamConnectWithWindow(CSteamID user, bool returnToServerBrowser = true)

@@ -165,7 +165,7 @@ namespace Multiplayer.Common
                 foreach (var player in JoinedPlayers)
                     player.SendPacket(Packets.Server_KeepAlive, ByteWriter.GetBytes(player.keepAliveId), false);
 
-            SendToPlaying(Packets.Server_TimeControl, ByteWriter.GetBytes(gameTimer, sentCmdsSnapshot, serverTimePerTick), false);
+            SendToPlaying(Packets.Server_TimeControl, ByteWriter.GetBytes(gameTimer, sentCmdsSnapshot, serverTimePerTick, freezeManager.Frozen), false);
 
             serverTimePerTick = PlayingIngamePlayers.MaxOrZero(p => p.frameTime);
 

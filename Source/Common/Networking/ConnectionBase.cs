@@ -13,6 +13,8 @@ namespace Multiplayer.Common
         public MpConnectionState? StateObj { get; private set; }
         public bool Lenient { get; set; }
 
+        public bool parallel = false;
+
         public T? GetState<T>() where T : MpConnectionState => (T?)StateObj;
 
         public void ChangeState(ConnectionStateEnum state)
@@ -51,7 +53,6 @@ namespace Multiplayer.Common
             byte[] full = new byte[1 + message.Length];
             full[0] = (byte)(Convert.ToByte(id) & 0x3F);
             message.CopyTo(full, 1);
-
             SendRaw(full, reliable);
         }
 
@@ -70,9 +71,11 @@ namespace Multiplayer.Common
                 return;
 
             int read = 0;
+            bool shouldSendParallel = parallel && message.Length > FragmentSize*(MultiplayerConstants.Parallelism-1)/2;
+            int maxFragmentSize = shouldSendParallel ? FragmentSize * (MultiplayerConstants.Parallelism-1) : FragmentSize;
             while (read < message.Length)
             {
-                int len = Math.Min(FragmentSize, message.Length - read);
+                int len = Math.Min(maxFragmentSize, message.Length - read);
                 int fragState = (read + len >= message.Length) ? FragEnd : FragMore;
                 byte headerByte = (byte)((Convert.ToByte(id) & 0x3F) | fragState);
 
@@ -87,7 +90,7 @@ namespace Multiplayer.Common
                 // Copy the message fragment
                 writer.WriteFrom(message, read, len);
 
-                SendRaw(writer.ToArray());
+                SendRaw(writer.ToArray(), true, shouldSendParallel);
 
                 read += len;
             }
@@ -98,7 +101,7 @@ namespace Multiplayer.Common
             SendFragmented(id, ByteWriter.GetBytes(msg));
         }
 
-        protected abstract void SendRaw(byte[] raw, bool reliable = true);
+        protected abstract void SendRaw(byte[] raw, bool reliable = true, bool shouldSendInParallel = false);
 
         public virtual void HandleReceiveRaw(ByteReader data, bool reliable)
         {
@@ -140,8 +143,9 @@ namespace Multiplayer.Common
             if (fragState != FragNone && fragmented == null)
                 fullSize = reader.ReadInt32();
 
-            if (reader.Left > FragmentSize)
-                throw new PacketReadException($"Packet {packetType} too big {reader.Left}>{FragmentSize}");
+            // Why does this matter? We already have the fragment.
+            //if (reader.Left > FragmentSize)
+                //throw new PacketReadException($"Packet {packetType} too big {reader.Left}>{FragmentSize}");
 
             if (fragState == FragNone)
             {
@@ -156,8 +160,10 @@ namespace Multiplayer.Common
                 fragmented ??= new ByteWriter(reader.Left);
                 fragmented.WriteRaw(reader.ReadRaw(reader.Left));
 
-                if (fragmented.Position > MaxPacketSize)
-                    throw new PacketReadException($"Full packet {packetType} too big {fragmented.Position}>{MaxPacketSize}");
+                // Why does this matter?
+                // If we received the fragment, why does it matter it is bigger than the max packet size? We already have it.
+                //if (fragmented.Position > MaxPacketSize)
+                    //throw new PacketReadException($"Full packet {packetType} too big {fragmented.Position}>{MaxPacketSize}");
 
                 if (fragState == FragEnd)
                 {

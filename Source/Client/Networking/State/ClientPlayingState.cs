@@ -20,10 +20,12 @@ namespace Multiplayer.Client
             int tickUntil = data.ReadInt32();
             int sentCmds = data.ReadInt32();
             float stpt = data.ReadFloat();
+            bool frozen = data.ReadBool();
 
             if (Multiplayer.session.remoteTickUntil >= tickUntil) return;
 
             TickPatch.serverTimePerTick = stpt;
+            TickPatch.serverFrozen = frozen;
             Multiplayer.session.remoteTickUntil = tickUntil;
             Multiplayer.session.remoteSentCmds = sentCmds;
             Multiplayer.session.ProcessTimeControl();

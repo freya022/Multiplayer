@@ -46,8 +46,8 @@ namespace Multiplayer.Common
             if (server.settings.maxPlayers > 0 &&
                 Players.Count(p => !p.IsArbiter) >= server.settings.maxPlayers)
                 return MpDisconnectReason.ServerFull;
-
-            if (lastConnection.TryGetValue(id, out var last) && clock.ElapsedMilliseconds - last < ThrottleMillis)
+            // TODO: Add counter to verify for parallelism
+            if (lastConnection.TryGetValue(id, out var last) && clock.ElapsedMilliseconds - last < ThrottleMillis && MultiplayerConstants.Parallelism == 1)
                 return MpDisconnectReason.Throttled;
 
             lastConnection[id] = clock.ElapsedMilliseconds;

@@ -14,6 +14,7 @@ public enum Packets : byte
     Client_InitData,
     Client_JoinData,
     Client_WorldRequest,
+    Client_Playing,
 
     // Playing
     Client_WorldReady,

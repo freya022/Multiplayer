@@ -15,7 +15,11 @@ public class ServerLoadingState : AsyncConnectionState
         await EndIfDead();
 
         SendWorldData();
+    }
 
+    [PacketHandler(Packets.Client_Playing)]
+    public void StartPlaying(ByteReader reader)
+    {
         connection.ChangeState(ConnectionStateEnum.ServerPlaying);
         Player.SendPlayerList();
     }

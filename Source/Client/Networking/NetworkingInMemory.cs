@@ -15,7 +15,7 @@ namespace Multiplayer.Client.Networking
             this.username = username;
         }
 
-        protected override void SendRaw(byte[] raw, bool reliable)
+        protected override void SendRaw(byte[] raw, bool reliable = true, bool shouldBeParallel = false)
         {
             Multiplayer.LocalServer.Enqueue(() =>
             {
@@ -51,7 +51,7 @@ namespace Multiplayer.Client.Networking
             this.username = username;
         }
 
-        protected override void SendRaw(byte[] raw, bool reliable)
+        protected override void SendRaw(byte[] raw, bool reliable, bool parallel)
         {
             OnMainThread.Enqueue(() =>
             {

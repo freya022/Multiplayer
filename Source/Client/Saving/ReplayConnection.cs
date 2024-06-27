@@ -22,7 +22,7 @@ public class ReplayConnection : ConnectionBase
         return new ScheduledCommand(cmd, 0, 0, mapId, 0, extraBytes);
     }
 
-    protected override void SendRaw(byte[] raw, bool reliable)
+    protected override void SendRaw(byte[] raw, bool reliable = true, bool shouldSendParallel = false)
     {
     }
 

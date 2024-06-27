@@ -28,7 +28,7 @@ namespace Multiplayer.Client
             }
             catch (Exception e)
             {
-                Log.Error($"Exception handling network events: {e}");
+                Log.Error($"Exception handling network events: {e.StackTrace}");
             }
 
             queue.RunQueue(Log.Error);

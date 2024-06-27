@@ -101,6 +101,7 @@ public class ClientLoadingState : ClientBaseState
         );
 
         Loader.ReloadGame(mapsToLoad, true, false);
+        connection.Send(Packets.Client_Playing);
         connection.ChangeState(ConnectionStateEnum.ClientPlaying);
     }
 }
