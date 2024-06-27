@@ -24,7 +24,7 @@ namespace Multiplayer.Client
         public int remoteSentCmds;
 
         public ConnectionBase client;
-        public NetManager netClient;
+        public ClientNetManager netClient;
         public PacketLogWindow writerLog = new(true);
         public PacketLogWindow readerLog = new(false);
         public int myFactionId;

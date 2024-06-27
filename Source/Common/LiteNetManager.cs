@@ -23,6 +23,7 @@ namespace Multiplayer.Common
         public LiteNetManager(MultiplayerServer server)
         {
             this.server = server;
+            listener = new MpServerNetListener(server, false);
         }
 
         public void Tick()
@@ -39,6 +40,16 @@ namespace Multiplayer.Common
             broadcastTimer++;
         }
 
+        private MpServerNetListener listener;
+        private NetManager CreateNetManager(IPv6Mode ipv6)
+        {
+            return new NetManager(listener)
+            {
+                EnableStatistics = true,
+                IPv6Enabled = ipv6
+            };
+        }
+
         public void StartNet()
         {
             try
@@ -49,13 +60,18 @@ namespace Multiplayer.Common
                     var split = server.settings.directAddress.Split(MultiplayerServer.EndpointSeparator);
 
                     foreach (var str in split)
-                        if (Endpoints.TryParse(str, MultiplayerServer.DefaultPort, out var endpoint))
+                    {
+                        for (uint portNumber = 0; portNumber < MultiplayerConstants.Parallelism; portNumber++)
                         {
+                            uint port = MultiplayerServer.DefaultPort + portNumber;
+                            if (!Endpoints.TryParse(str, port, out var endpoint))
+                                continue;
                             if (endpoint.AddressFamily == AddressFamily.InterNetwork)
-                                liteNetEndpoints.GetOrAddNew(endpoint.Port).ipv4 = endpoint.Address;
+                                liteNetEndpoints.GetOrAddNew((int) port).ipv4 = endpoint.Address;
                             else if (endpoint.AddressFamily == AddressFamily.InterNetworkV6)
-                                liteNetEndpoints.GetOrAddNew(endpoint.Port).ipv6 = endpoint.Address;
+                                liteNetEndpoints.GetOrAddNew((int) port).ipv6 = endpoint.Address;
                         }
+                    }
 
                     foreach (var (port, endpoint) in liteNetEndpoints)
                     {
@@ -86,15 +102,6 @@ namespace Multiplayer.Common
             catch (Exception e)
             {
                 ServerLog.Log($"Exception starting LAN: {e}");
-            }
-
-            NetManager CreateNetManager(IPv6Mode ipv6)
-            {
-                return new NetManager(new MpServerNetListener(server, false))
-                {
-                    EnableStatistics = true,
-                    IPv6Enabled = ipv6
-                };
             }
         }
 

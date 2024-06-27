@@ -19,7 +19,7 @@ namespace Multiplayer.Client.Networking
             this.sendChannel = sendChannel;
         }
 
-        protected override void SendRaw(byte[] raw, bool reliable)
+        protected override void SendRaw(byte[] raw, bool reliable = true, bool shouldBeParallel = false)
         {
             byte[] full = new byte[1 + raw.Length];
             full[0] = reliable ? (byte)2 : (byte)0;
