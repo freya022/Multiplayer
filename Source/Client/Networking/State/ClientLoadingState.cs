@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Ionic.Zlib;
 using Multiplayer.Client.Saving;
@@ -13,12 +14,17 @@ public enum LoadingState
     Downloading
 }
 
-public class ClientLoadingState : ClientBaseState
+public class ClientLoadingState(ConnectionBase connection) : ClientBaseState(connection)
 {
     public LoadingState subState = LoadingState.Waiting;
+    public readonly Stopwatch timer = new();
 
-    public ClientLoadingState(ConnectionBase connection) : base(connection)
+    private long GetTime()
     {
+        timer.Stop();
+        long result = timer.ElapsedMilliseconds;
+        timer.Restart();
+        return result;
     }
 
     [PacketHandler(Packets.Server_WorldDataStart)]
@@ -26,14 +32,14 @@ public class ClientLoadingState : ClientBaseState
     {
         subState = LoadingState.Downloading;
         connection.Lenient = false; // Lenient is set while rejoining
+        timer.Restart();
     }
 
     [PacketHandler(Packets.Server_WorldData)]
     [IsFragmented]
     public void HandleWorldData(ByteReader data)
     {
-        Log.Message("Game data size: " + data.Length);
-
+        long downloadTimeMilliseconds = GetTime();
         int factionId = data.ReadInt32();
         Multiplayer.session.myFactionId = factionId;
 
@@ -41,8 +47,8 @@ public class ClientLoadingState : ClientBaseState
         int remoteSentCmds = data.ReadInt32();
         bool serverFrozen = data.ReadBool();
 
-        byte[] worldData = GZipStream.UncompressBuffer(data.ReadPrefixedBytes());
-        byte[] sessionData = GZipStream.UncompressBuffer(data.ReadPrefixedBytes());
+        byte[] worldCompressedData = data.ReadPrefixedBytes();
+        byte[] sessionCompressedData = data.ReadPrefixedBytes();
 
         var mapCmdsDict = new Dictionary<int, List<ScheduledCommand>>();
         var mapDataDict = new Dictionary<int, byte[]>();
@@ -72,6 +78,10 @@ public class ClientLoadingState : ClientBaseState
             mapsToLoad.Add(mapId);
         }
 
+        long readMillis = GetTime();
+
+        byte[] worldData = GZipStream.UncompressBuffer(worldCompressedData);
+        byte[] sessionData = GZipStream.UncompressBuffer(sessionCompressedData);
         Session.dataSnapshot = new GameDataSnapshot(
             0,
             worldData,
@@ -95,13 +105,19 @@ public class ClientLoadingState : ClientBaseState
 
         TickPatch.SetSimulation(
             toTickUntil: true,
-            onFinish: () => Multiplayer.Client.Send(Packets.Client_WorldReady),
+            onFinish: static () => Multiplayer.Client.Send(Packets.Client_WorldReady),
             cancelButtonKey: "Quit",
             onCancel: GenScene.GoToMainMenu // Calls StopMultiplayer through a patch
         );
+        long decompressionMillis = GetTime();
 
         Loader.ReloadGame(mapsToLoad, true, false);
-        connection.Send(Packets.Client_Playing);
         connection.ChangeState(ConnectionStateEnum.ClientPlaying);
+        long reloadMillis = GetTime();
+        timer.Stop();
+        Log.Message($"Game data size: {data.Length} in {downloadTimeMilliseconds}ms");
+        Log.Message($"Read: {readMillis}ms");
+        Log.Message($"Decompress: {decompressionMillis}ms");
+        Log.Message($"Reload: {reloadMillis}ms");
     }
 }
